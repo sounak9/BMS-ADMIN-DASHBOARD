@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* Ensure full stretch */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  @apply bg-slate-900 text-slate-100;
+  margin: 0;
+}
