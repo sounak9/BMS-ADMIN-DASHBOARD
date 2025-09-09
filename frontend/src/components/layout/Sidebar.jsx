@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 
 const routes = [
-  { path: "/dashboard", label: "Dashboard" },
+  { path: "/", label: "Dashboard" },
   { path: "/companies", label: "Companies" },
   { path: "/users", label: "Users" },
   { path: "/batteries", label: "Batteries" },
