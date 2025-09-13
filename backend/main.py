@@ -76,49 +76,46 @@ def create_app():
     # -------------------
     # Auth: Register
     # -------------------
-    @app.route('/api/auth/register', methods=['POST'])
+    @app.route("/api/auth/register", methods=["POST"])
     def register():
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No input data provided'}), 400
 
-        required_fields = ("username", "email", "password")
-        if not all(field in data for field in required_fields):
-            return jsonify({'error': 'Missing required fields'}), 400
+        # Check if username or email already exists
+        if TblUser.query.filter_by(username=data["username"]).first():
+            return jsonify({"error": "Username already exists"}), 400
+        if TblUser.query.filter_by(email=data["email"]).first():
+            return jsonify({"error": "Email already exists"}), 400
 
-        if TblUser.query.filter(
-            (TblUser.username == data['username']) | (TblUser.email == data['email'])
-        ).first():
-            return jsonify({'error': 'User already exists'}), 409
+        # Hash password
+        hashed_pw = generate_password_hash(data["password"])
 
-        hashed_pw = generate_password_hash(data['password'])
+        # Validate company_id (if provided)
+        company_id = data.get("company_id")
+        if company_id:
+            company = CompanyProfile.query.get(company_id)
+            if not company:
+                return jsonify({"error": f"Company with id {company_id} does not exist"}), 400
+        else:
+            company_id = None  # allow NULL
+
+        # Create new user
         user = TblUser(
-            username=data['username'],
-            email=data['email'],
+            username=data["username"],
+            email=data["email"],
             password=hashed_pw,
-            company_id=data.get("company_id"),
-            phone=data.get('phone'),
-            security_qn=data.get('security_qn'),
-            security_ans=data.get('security_ans'),
-            role=data.get('role', 'user'),
+            phone=data.get("phone"),
+            security_qn=data.get("security_qn"),
+            security_ans=data.get("security_ans"),
+            role=data.get("role", "user"),
+            company_id=company_id,
+            created_at=datetime.utcnow(),
+            last_login=None,
         )
 
-        try:
-            db.session.add(user)
-            db.session.commit()
-            token = create_jwt(user)
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'error': 'Database error', 'details': str(e)}), 500
+        db.session.add(user)
+        db.session.commit()
 
-        return jsonify({
-            'message': 'User registered successfully',
-            'token': token,
-            'u_id': user.u_id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role
-        }), 201
+        return jsonify({"message": "User registered successfully"}), 201
 
     # -------------------
     # Auth: Login
