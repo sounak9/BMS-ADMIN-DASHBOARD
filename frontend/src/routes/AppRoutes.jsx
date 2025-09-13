@@ -8,6 +8,7 @@ import Reports from "../pages/Reports";
 import Settings from "../pages/Settings";
 import AdminLogin from "../pages/AdminLogin";
 import AdminSignup from "../pages/AdminSignup";
+import PrivateLayout from "../components/layout/PrivateLayout";
 
 // Protect routes
 function ProtectedRoute({ children }) {
@@ -18,16 +19,18 @@ function ProtectedRoute({ children }) {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public routes (no layout) */}
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/register" element={<AdminSignup />} />
 
-      {/* Protected routes */}
+      {/* Protected routes (with PrivateLayout) */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <PrivateLayout>
+              <Dashboard />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -35,7 +38,9 @@ export default function AppRoutes() {
         path="/companies"
         element={
           <ProtectedRoute>
-            <Companies />
+            <PrivateLayout>
+              <Companies />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -43,7 +48,9 @@ export default function AppRoutes() {
         path="/users"
         element={
           <ProtectedRoute>
-            <Users />
+            <PrivateLayout>
+              <Users />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -51,7 +58,9 @@ export default function AppRoutes() {
         path="/batteries"
         element={
           <ProtectedRoute>
-            <Batteries />
+            <PrivateLayout>
+              <Batteries />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -59,7 +68,9 @@ export default function AppRoutes() {
         path="/faults"
         element={
           <ProtectedRoute>
-            <Faults />
+            <PrivateLayout>
+              <Faults />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -67,7 +78,9 @@ export default function AppRoutes() {
         path="/reports"
         element={
           <ProtectedRoute>
-            <Reports />
+            <PrivateLayout>
+              <Reports />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
@@ -75,12 +88,14 @@ export default function AppRoutes() {
         path="/settings"
         element={
           <ProtectedRoute>
-            <Settings />
+            <PrivateLayout>
+              <Settings />
+            </PrivateLayout>
           </ProtectedRoute>
         }
       />
 
-      {/* Fallback */}
+      {/* Catch all */}
       <Route path="*" element={<Navigate to="/admin/login" replace />} />
     </Routes>
   );
