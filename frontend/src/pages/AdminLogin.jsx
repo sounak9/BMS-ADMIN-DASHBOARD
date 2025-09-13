@@ -1,78 +1,83 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-export default function AdminLogin() {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({ username: "", password: "" });
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     try {
-      const res = await axios.post(`${API_URL}/admin/login`, form, {
+      const res = await fetch("http://127.0.0.1:5000/api/auth/login", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      localStorage.setItem("admin_token", res.data.access_token);
-      localStorage.setItem("admin_username", res.data.username);
-
-      navigate("/");
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("admin_token", data.token); // ✅ fixed
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("admin_user", JSON.stringify(data)); // ✅ store user info
+        navigate("/"); // redirect to dashboard
+      } else {
+        setError(data.error || "Login failed");
+      }
     } catch (err) {
-      setError(err.response?.data?.error || "Login failed. Try again.");
+      setError("Server error. Please try again.");
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-slate-900 text-slate-100">
-      <div className="w-full max-w-sm p-6 rounded-2xl bg-slate-800 shadow-lg border border-slate-700">
-        <h2 className="text-2xl font-semibold mb-6 text-center">Admin Login</h2>
-        {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+    <div className="flex items-center justify-center min-h-screen bg-[#1A2B5B]">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-sm">
+        <h2 className="text-xl font-bold text-center mb-4 text-black">Login</h2>
+
+        {error && <p className="text-red-500 mb-2">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            value={form.username}
-            onChange={handleChange}
+            type="email"
+            placeholder="Email"
+            className="w-full p-2 border rounded text-black"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <input
             type="password"
-            name="password"
             placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
+            className="w-full p-2 border rounded text-black"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          <div className="text-center mt-2">
+            <Link
+              to="/forgot-password"
+              className="text-blue-600 hover:underline"
+            >
+              Forgot Password?
+            </Link>
+          </div>
           <button
             type="submit"
-            className="w-full py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 transition-colors"
+            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
           >
             Login
           </button>
         </form>
 
-        {/* Sign up link */}
-        <p className="mt-4 text-sm text-center">
-          Don’t have an account?{" "}
-          <button
-            onClick={() => navigate("/admin/register")}
-            className="text-indigo-400 hover:underline"
-          >
-            Sign Up
-          </button>
-        </p>
+        <div className="text-center mt-2 text-black">
+          Don't have an account?{" "}
+          <Link to="/admin/register" className="text-blue-600 hover:underline">
+            Register
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -1,10 +1,20 @@
 from flask import Flask, jsonify, request
 from extensions import db, migrate, jwt
 from config import Config
-import models
+from models import (
+    db,
+    CompanyProfile,
+    TblUser,
+    BattDescription,
+    BattFaultLog,
+    MqttData
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from flask_cors import CORS 
+from flask_cors import CORS
+from sqlalchemy import func
+from datetime import datetime, timedelta
+
 
 def create_app():
     app = Flask(__name__)
@@ -15,7 +25,16 @@ def create_app():
     jwt.init_app(app)
 
     CORS(app, resources={r"/*": {"origins": ["http://localhost:5173"]}})
-    
+
+    # -------------------
+    # JWT helper
+    # -------------------
+    def create_jwt(user):
+        return create_access_token(
+            identity=user.u_id,
+            expires_delta=timedelta(hours=24)
+        )
+
     @app.route("/")
     def home():
         return jsonify({"message": "BMS Admin Dashboard API Running"})
@@ -25,7 +44,7 @@ def create_app():
     # -------------------
     @app.route("/companies")
     def companies():
-        comps = models.Company.query.all()
+        comps = CompanyProfile.query.all()
         return jsonify([{"id": c.company_id, "name": c.company_name} for c in comps])
 
     # -------------------
@@ -33,7 +52,7 @@ def create_app():
     # -------------------
     @app.route("/users")
     def users():
-        usrs = models.User.query.all()
+        usrs = TblUser.query.all()
         return jsonify([
             {"u_id": u.u_id, "username": u.username, "email": u.email, "role": u.role}
             for u in usrs
@@ -42,69 +61,160 @@ def create_app():
     # -------------------
     # Auth: Register
     # -------------------
-    @app.route("/admin/register", methods=["POST"])
-    def admin_register():
+    @app.route('/api/auth/register', methods=['POST'])
+    def register():
         data = request.get_json()
-        if not data.get("username") or not data.get("password") or not data.get("email"):
-            return jsonify({"error": "Missing username, email, or password"}), 400
+        if not data:
+            return jsonify({'error': 'No input data provided'}), 400
 
-        existing = models.AdminAuth.query.filter(
-            (models.AdminAuth.username == data["username"]) |
-            (models.AdminAuth.email == data["email"])
-        ).first()
-        if existing:
-            return jsonify({"error": "Admin already exists"}), 400
+        required_fields = ("username", "email", "password")
+        if not all(field in data for field in required_fields):
+            return jsonify({'error': 'Missing required fields'}), 400
 
-        new_admin = models.AdminAuth()
-        new_admin.username = data["username"]
-        new_admin.email = data["email"]
-        new_admin.password = generate_password_hash(data["password"])
-        new_admin.role = "admin"
+        if TblUser.query.filter(
+            (TblUser.username == data['username']) | (TblUser.email == data['email'])
+        ).first():
+            return jsonify({'error': 'User already exists'}), 409
 
-        db.session.add(new_admin)
-        db.session.commit()
-        db.session.refresh(new_admin)  
+        hashed_pw = generate_password_hash(data['password'])
+        user = TblUser(
+            username=data['username'],
+            email=data['email'],
+            password=hashed_pw,
+            company_id=data.get("company_id"),
+            phone=data.get('phone'),
+            security_qn=data.get('security_qn'),
+            security_ans=data.get('security_ans'),
+            role=data.get('role', 'user'),
+        )
 
-        return jsonify({"message": "Admin registered successfully"}), 201
+        try:
+            db.session.add(user)
+            db.session.commit()
+            token = create_jwt(user)
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': 'Database error', 'details': str(e)}), 500
+
+        return jsonify({
+            'message': 'User registered successfully',
+            'token': token,
+            'u_id': user.u_id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }), 201
 
     # -------------------
     # Auth: Login
     # -------------------
-    @app.route("/admin/login", methods=["POST"])
-    def admin_login():
+    @app.route('/api/auth/login', methods=['POST'])
+    def login():
         data = request.get_json()
-        admin = models.AdminAuth.query.filter_by(username=data["username"]).first()
+        user = TblUser.query.filter_by(email=data.get('email')).first()
 
-        if not admin or not check_password_hash(admin.password, data["password"]):
-            return jsonify({"error": "Invalid credentials"}), 401
+        if user and check_password_hash(user.password, data.get('password')):
+            token = create_jwt(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            return jsonify({
+                'message': 'Login successful',
+                'token': token,
+                'u_id': user.u_id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role
+            }), 200
 
-        token = create_access_token(identity=admin.id)
-        return jsonify({
-            "access_token": token,
-            "username": admin.username,
-            "email": admin.email,
-            "role": admin.role
-        }), 200
-
+        return jsonify({'error': 'Invalid credentials'}), 401
 
     # -------------------
-    # Auth: Current User
+    # Current User
     # -------------------
     @app.route("/me", methods=["GET"])
     @jwt_required()
     def me():
-        admin_id = get_jwt_identity()
-        admin = models.AdminAuth.query.get(admin_id)
-        if not admin:
-            return jsonify({"error": "Admin not found"}), 404
-
+        user_id = get_jwt_identity()
+        user = TblUser.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
         return jsonify({
-            "id": admin.id,
-            "username": admin.username,
-            "email": admin.email,
-            "role": admin.role
+            "id": user.u_id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role
         })
 
+    # -------------------
+    # Batteries (latest MQTT data per battery)
+    # -------------------
+    @app.route("/batteries")
+    def batteries():
+        subq = (
+            db.session.query(
+                MqttData.battery_id,
+                func.max(MqttData.ts).label("latest_ts")
+            )
+            .group_by(MqttData.battery_id)
+            .subquery()
+        )
+
+        latest_records = (
+            db.session.query(MqttData)
+            .join(
+                subq,
+                (MqttData.battery_id == subq.c.battery_id)
+                & (MqttData.ts == subq.c.latest_ts)
+            )
+            .all()
+        )
+
+        return jsonify([
+            {
+                "id": m.id,
+                "battery_id": m.battery_id,
+                "voltage": str(m.voltage),
+                "current": str(m.current),
+                "temperature": str(m.temperature),
+                "timestamp": m.ts.isoformat() if m.ts else None,
+            }
+            for m in latest_records
+        ])
+
+    # -------------------
+    # Fault Logs
+    # -------------------
+    @app.route("/faults")
+    def faults():
+        faults = BattFaultLog.query.all()
+        return jsonify([
+            {
+                "id": f.fault_id,
+                "batt_uid": f.batt_uid,
+                "type": f.fault_type,
+                "severity": f.severity,
+                "detected_at": f.detected_at.isoformat() if f.detected_at else None,
+                "note": f.note,
+            }
+            for f in faults
+        ])
+
+    # -------------------
+    # Dashboard Stats
+    # -------------------
+    @app.route("/dashboard/stats")
+    def dashboard_stats():
+        companies = CompanyProfile.query.count()
+        users = TblUser.query.count()
+        batteries = db.session.query(MqttData.battery_id).distinct().count()
+        faults = BattFaultLog.query.count()
+
+        return jsonify({
+            "companies": companies,
+            "users": users,
+            "batteries": batteries,
+            "faults": faults,
+        })
 
     return app
 
