@@ -163,8 +163,9 @@ def create_app():
     # -------------------
     # Batteries (latest MQTT data per battery)
     # -------------------
-    @app.route("/batteries")
+    @app.route("/batteries", methods=["GET"])
     def batteries():
+        # subquery: latest record per battery
         subq = (
             db.session.query(
                 MqttData.battery_id,
@@ -184,17 +185,34 @@ def create_app():
             .all()
         )
 
-        return jsonify([
-            {
-                "id": m.id,
-                "battery_id": m.battery_id,
-                "voltage": str(m.voltage),
-                "current": str(m.current),
-                "temperature": str(m.temperature),
-                "timestamp": m.ts.isoformat() if m.ts else None,
-            }
-            for m in latest_records
-        ])
+        # all records (history)
+        all_records = MqttData.query.order_by(MqttData.ts.desc()).all()
+
+        return jsonify({
+            "latest": [
+                {
+                    "id": m.id,
+                    "battery_id": m.battery_id,
+                    "voltage": str(m.voltage),
+                    "current": str(m.current),
+                    "temperature": str(m.temperature),
+                    "timestamp": m.ts.isoformat() if m.ts else None,
+                }
+                for m in latest_records
+            ],
+            "all": [
+                {
+                    "id": m.id,
+                    "battery_id": m.battery_id,
+                    "voltage": str(m.voltage),
+                    "current": str(m.current),
+                    "temperature": str(m.temperature),
+                    "timestamp": m.ts.isoformat() if m.ts else None,
+                }
+                for m in all_records
+            ]
+        })
+
 
     # -------------------
     # Fault Logs
