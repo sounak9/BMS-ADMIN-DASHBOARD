@@ -50,13 +50,28 @@ def create_app():
     # -------------------
     # Users API
     # -------------------
-    @app.route("/users")
-    def users():
-        usrs = TblUser.query.all()
-        return jsonify([
-            {"u_id": u.u_id, "username": u.username, "email": u.email, "role": u.role}
-            for u in usrs
-        ])
+    @app.route("/users", methods=["GET"])
+    def get_users():
+        users = TblUser.query.all()
+        total_users = TblUser.query.count()
+
+        return jsonify({
+            "total": total_users,
+            "users": [
+                {
+                    "u_id": u.u_id,
+                    "username": u.username,
+                    "email": u.email,
+                    "phone": u.phone,
+                    "role": u.role,
+                    "company_id": u.company_id,
+                    "created_at": u.created_at.isoformat() if u.created_at else None,
+                    "last_login": u.last_login.isoformat() if u.last_login else None,
+                }
+                for u in users
+            ]
+        })
+
 
     # -------------------
     # Auth: Register
