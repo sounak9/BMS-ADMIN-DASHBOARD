@@ -7,7 +7,7 @@ export default function App() {
   const location = useLocation();
   const hideLayout =
     location.pathname.startsWith("/admin/login") ||
-    location.pathname.startsWith("/admin/signup");
+    location.pathname.startsWith("/admin/register");
 
   return (
     <div className="flex min-h-screen bg-slate-900 text-slate-100">

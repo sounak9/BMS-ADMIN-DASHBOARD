@@ -12,7 +12,7 @@ from models import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 
 
@@ -123,9 +123,20 @@ def create_app():
     @app.route('/api/auth/login', methods=['POST'])
     def login():
         data = request.get_json()
-        user = TblUser.query.filter_by(email=data.get('email')).first()
+        identifier = data.get('identifier')  # can be email OR username
+        password = data.get('password')
 
-        if user and check_password_hash(user.password, data.get('password')):
+        if not identifier or not password:
+            return jsonify({'error': 'Missing identifier or password'}), 400
+
+        user = TblUser.query.filter(
+            or_(
+                TblUser.email == identifier,
+                TblUser.username == identifier
+            )
+        ).first()
+
+        if user and check_password_hash(user.password, password):
             token = create_jwt(user)
             user.last_login = datetime.utcnow()
             db.session.commit()

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function AdminLogin() {
-  const [formData, setFormData] = useState({ username: "", password: "" });
+  const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
@@ -32,6 +32,7 @@ export default function AdminLogin() {
       localStorage.setItem("admin_token", data.token);
       navigate("/");
     } catch (err) {
+      console.error(err);
       setError("Something went wrong. Please try again.");
     }
   };
@@ -48,9 +49,9 @@ export default function AdminLogin() {
 
         <input
           type="text"
-          name="username"
-          placeholder="Username"
-          value={formData.username}
+          name="identifier"
+          placeholder="Email or Username"
+          value={formData.identifier}
           onChange={handleChange}
           className="w-full mb-4 p-3 rounded bg-gray-700 border border-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           required

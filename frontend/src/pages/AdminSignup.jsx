@@ -38,8 +38,9 @@ export default function AdminSignup() {
       }
 
       // ✅ After successful signup, go to login
-      navigate("/admin/login");
+      navigate("/");
     } catch (err) {
+      console.error(err);
       setError("Something went wrong. Please try again.");
     }
   };
@@ -108,11 +109,14 @@ export default function AdminSignup() {
           <option value="What is your pet’s name?">
             What is your pet’s name?
           </option>
-          <option value="What is your mother’s maiden name?">
-            What is your mother’s maiden name?
-          </option>
           <option value="What was your first school?">
             What was your first school?
+          </option>
+          <option value="What was your first school?">
+            What is your nickname?
+          </option>
+          <option value="What was your first school?">
+            What was you birth place?
           </option>
         </select>
 
