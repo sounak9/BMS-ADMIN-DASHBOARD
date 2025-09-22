@@ -20,27 +20,56 @@ ChartJS.register(
 
 export default function LineChart({ labels, data }) {
   return (
-    <Line
-      data={{
-        labels,
-        datasets: [
-          {
-            label: "Users",
-            data,
-            borderColor: "#6366f1",
-            backgroundColor: "rgba(99,102,241,0.3)",
-            fill: true,
+    <div className="w-full h-64">
+      <Line
+        data={{
+          labels,
+          datasets: [
+            {
+              label: "Users",
+              data,
+              borderColor: "#6366f1",
+              backgroundColor: "rgba(99,102,241,0.3)",
+              pointBackgroundColor: [
+                "#f59e42",
+                "#22c55e",
+                "#6366f1",
+                "#ef4444",
+                "#eab308",
+              ],
+              pointBorderColor: "#fff",
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              fill: true,
+              tension: 0.4,
+            },
+          ],
+        }}
+        options={{
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#cbd5e1" } },
+            tooltip: {
+              backgroundColor: "#1e293b",
+              titleColor: "#f59e42",
+              bodyColor: "#fff",
+              borderColor: "#6366f1",
+              borderWidth: 2,
+            },
           },
-        ],
-      }}
-      options={{
-        responsive: true,
-        plugins: { legend: { labels: { color: "#cbd5e1" } } },
-        scales: {
-          x: { ticks: { color: "#9ca3af" } },
-          y: { ticks: { color: "#9ca3af" } },
-        },
-      }}
-    />
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "#334155" },
+            },
+            y: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "#334155" },
+            },
+          },
+        }}
+      />
+    </div>
   );
 }
